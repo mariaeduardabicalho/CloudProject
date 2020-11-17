@@ -77,9 +77,11 @@
       name: 
         - psycopg2
         - PyMySQL
-- hosts: database
-  gather_facts: False
+- hosts: ec2_server
   become: yes
+  remote_user: ubuntu 
+  gather_facts: yes
+  
   vars_files:
     - vars/main.yml
   roles:
