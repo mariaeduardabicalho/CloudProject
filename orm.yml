@@ -1,0 +1,76 @@
+---
+#cria primeira instancia -- base de dados 
+- name: Create instance
+  hosts: localhost
+  gather_facts: False
+  vars:
+    keypair: accessdudab
+    instance_type: t2.micro
+    security_group: launch-wizard-14
+    image: ami-0817d428a6fb68645
+    region: us-east-1
+  tasks:
+    - name: Launch instance
+      ec2:
+        key_name: "{{ keypair }}"
+        region: "{{ region }}" 
+        group: "{{ security_group }}"
+        instance_type: "{{ instance_type }}"
+        image: "{{ image }}"
+        wait: yes   
+        vpc_subnet_id: subnet-c1cf7da6 
+        count : 1
+        assign_public_ip: yes
+      register: ec2
+      
+    - name: Create SSH Group to login dynamically to EC2 Instance
+      add_host: 
+        hostname: "{{ item.public_ip }}"
+        groupname: ec2_server
+      with_items: '{{ ec2.instances }}'
+
+    - name: Wait for SSH to come up
+      wait_for: 
+        host: "{{ item.public_ip }}" 
+        port: 22
+        delay: 10
+        timeout: 320
+        state: started
+      with_items: '{{ ec2.instances }}'
+
+- hosts: ec2_server
+  become: yes
+  # Use ec2_user if you are using CentOS/Amazon server
+  remote_user: ubuntu # for Ubuntu server
+  gather_facts: yes
+  
+  tasks:
+  - name: apt update
+    become: true
+    become_user: root
+    apt: 
+      update_cache: yes 
+      name: [python3-dev, libpq-dev, python3-pip]
+      state: present
+  - name: pip install
+    pip:
+      name:
+        - django
+        - psycopg2
+  - name: git cloning
+    git:
+      repo: https://github.com/raulikeda/tasks.git
+      dest: /home/ubuntu/tasks
+  - name: migration
+    command: python3 manage.py migrate
+    args:
+      chdir: /home/ubuntu/tasks
+  - name: crontab
+    cron:
+      name: "start django"
+      special_time: reboot
+      job: cd /home/ubuntu/tasks && ./run.sh
+  - name: reboot machine
+    become: true
+    become_user: root
+    reboot:

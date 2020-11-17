@@ -46,7 +46,6 @@
         state: started
       with_items: '{{ ec2.instances }}'
 
-
 - hosts: ec2_server
   become: yes
   remote_user: ubuntu 
@@ -77,48 +76,47 @@
       name: 
         - psycopg2
         - PyMySQL
+  vars_files:
+    - vars/main.yml
+  roles:
+    - geerlingguy.postgresql
+
 - hosts: ec2_server
   become: yes
   remote_user: ubuntu 
   gather_facts: yes
   
-  vars_files:
-    - vars/main.yml
-  roles:
-    - geerlingguy.postgresql
-  # - name: Ensure the PostgreSQL service is running
-  #   service: 
-  #     name: postgresql 
-  #     state: started 
-  #     enabled: yes
-  # - name: Ensure database is createdb
-  #   become: true 
-  #   become_user: postgres
-  #   postgresql_db: 
-  #     name: cloud
-  #     encoding: 'UTF-8'
-  #     lc_collate: 'en_US.UTF-8'
-  #     lc_ctype: 'en_US.UTF-8'
-  #     template: 'template0'  
-  #     state: present
-  # - name:  User create
-  #   become: true
-  #   become_user: postgres
-  #   postgresql_user:
-  #     db: "cloud"
-  #     name: "cloudi"
-  #     password: "cloudi"  
-  #     priv: ALL
-  #     state: present
-  # - name: ensure privileges
-  #   become: true
-  #   become_user: postgres   
-  #   postgresql_user:
-  #     name: "cloudi"
-  #     role_attr_flags: "CREATEDB,NOSUPERUSER"
-  #     state: present
+  tasks:
+  - name: uncomment line
+    lineinfile:
+      path: /etc/postgresql/10/main/postgresql.conf
+      regexp: '^#(.*Uncomment this line.*)'
+      line: listen_addresses = '*'
+      
+  - name: add line   
+    lineinfile:
+      path: /etc/postgresql/10/main/pg_hba.conf
+      line: host all all 0.0.0.0/0 md5
 
-  # - name: restart postgres
-  #   service :
-  #     name: postgresql
-  #     state: restarted
+  - name: add line   
+    lineinfile:
+      path: /etc/postgresql/10/main/pg_hba.conf
+      line: host all all 0.0.0.0/0 trust
+
+  - name: liberar firewall
+    become: yes
+    command: sudo ufw allow 5432/tcp
+
+  - name: reiniciar postgres
+    become: yes
+    command: sudo systemctl restart postgresql
+
+
+
+
+  
+
+
+
+
+
