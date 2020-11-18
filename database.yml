@@ -98,11 +98,6 @@
       path: /etc/postgresql/10/main/pg_hba.conf
       line: host all all 0.0.0.0/0 md5
 
-  - name: add line   
-    lineinfile:
-      path: /etc/postgresql/10/main/pg_hba.conf
-      line: host all all 0.0.0.0/0 trust
-
   - name: liberar firewall
     become: yes
     command: sudo ufw allow 5432/tcp
