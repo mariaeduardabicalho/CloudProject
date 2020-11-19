@@ -1,0 +1,190 @@
+# Rodar no terminal :  export ANSIBLE_HOST_KEY_CHECKING=False
+- name: Create instance
+  hosts: localhost
+  gather_facts: yes #False
+  vars:
+    keypair: accessdudab2
+    instance_type: t2.micro
+    security_group: dbsgroup
+    image: ami-0dd9f0e7df0f0a138 
+    region: us-east-2 
+    inventory_dir: /inventory/database
+    
+  tasks:
+    - name: Launch instance
+      ec2:
+        key_name: "{{ keypair }}"
+        region: "{{ region }}" 
+        group: "{{ security_group }}"
+        instance_type: "{{ instance_type }}"
+        image: "{{ image }}"
+        wait: yes   
+        vpc_subnet_id: subnet-59d02915 
+        count : 1
+        assign_public_ip: yes
+      register: ec2_db  
+    
+    # - name: Add new instance to host group
+    #   add_host:
+    #     hostname: "{{ item.public_ip }}"
+    #     groupname: database
+    #     inventory_dir: '{{ inventory_dir }}'
+    #   with_items: "{{ ec2.instances }}"
+      
+    - name: Create SSH Group to login dynamically to EC2 Instance
+
+      add_host: 
+        name: "db_ip"
+        ivar: "{{ item.public_ip }}"
+        hostname: "{{ item.public_ip }}"
+        groupname: ec2_server
+        inventory_dir: /mnt/c/users/duda/documents/insper/6-semestre/cloud/projeto/inventory/ec2_sever
+        # ansible_host: localhost
+        # ansible_port: 8080
+        debug: var=ivar
+        delegate_to: ec2_server_djang
+      with_items: '{{ ec2_db.instances }}'
+
+    # - name: save var
+    #   debug: var=ivar
+    #   delegate_to: localhost
+   
+    - name: Wait for SSH to come up
+      wait_for: 
+        host: "{{ item.public_ip }}" 
+        port: 22
+        delay: 10
+        timeout: 320
+        state: started
+      with_items: '{{ ec2_db.instances }}'
+
+# - hosts: ec2_server
+#   gather_facts: no
+#   tasks:
+#   - debug: var=ivar
+#     delegate_to: localhost
+
+# - hosts: localhost
+#   gather_facts: yes
+  
+#   tasks:
+#     - name: Testing vars
+#       debug:
+#         var: hostvars[ec2_server].hostname_output.stdout  
+  # tasks:
+  # - name: addh
+  #   local_action:
+  #     module: uri
+  #     url: http://checkip.amazonaws.com/
+  #     return_content: yes
+  #   register: ip_lookup
+  # - set_fact:
+  #     db_ip: "{{ ip_lookup.content | regex_replace('\n','') }}"
+  # - debug: var=db_ip  
+      
+
+- name: Create instance django 
+  hosts: localhost
+  gather_facts: False
+  vars:
+    keypair: accessdudab
+    instance_type: t2.micro
+    security_group: launch-wizard-14
+    image: ami-0817d428a6fb68645
+    region: us-east-1
+  tasks:
+    - name: Launch djangoinstances
+      ec2:
+        key_name: "{{ keypair }}"
+        region: "{{ region }}" 
+        group: "{{ security_group }}"
+        instance_type: "{{ instance_type }}"
+        image: "{{ image }}"
+        wait: yes   
+        vpc_subnet_id: subnet-c1cf7da6 
+        count : 2
+        assign_public_ip: yes
+      register: ec2  
+     
+    - name: Create SSH Group to login dynamically to EC2 Instance
+      add_host: 
+        hostname: "{{ item.public_ip }}"
+        groupname: ec2_server_djang
+      with_items: '{{ ec2.instances }}'
+
+    - name: Wait for SSH to come up
+      wait_for: 
+        host: "{{ item.public_ip }}" 
+        port: 22
+        delay: 10
+        timeout: 320
+        state: started
+      with_items: '{{ ec2.instances }}'
+
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  - debug: var=ivar
+    delegate_to: ec2_server_djang
+
+- hosts: ec2_server_djang
+  become: yes
+  remote_user: ubuntu 
+  gather_facts: yes
+
+  tasks:
+  - name: apt update
+    become: true
+    become_user: root
+    apt: 
+      update_cache: yes 
+      name: [python3-dev, libpq-dev, python3-pip]
+      state: present
+  - name: pip install
+    pip:
+      name:
+        - django
+        - psycopg2
+  - name: git cloning
+    git:
+      repo: https://github.com/mariaeduardabicalho/tasks.git
+      dest: /home/ubuntu/tasks
+  - name: change host
+    lineinfile:
+      path: /home/ubuntu/tasks/portfolio/settings.py
+      regexp: '^        HOST'
+      # line: '       "HOST": {{ ec2.instances.public_ip  }}'
+      # line: "       'HOST': {{ hostvars['db_ip']['address']}},"
+      line: "       'HOST': {{ hostvars['db_ip']['ivar']}},"
+
+
+
+
+  # - name: migration
+  #   command: python3 manage.py migrate
+  #   throttle: 1
+  #   args:
+  #     chdir: /home/ubuntu/tasks
+  # - name: crontab
+  #   cron:
+  #     name: "start django"
+  #     special_time: reboot
+  #     job: cd /home/ubuntu/tasks && ./run.sh
+  # - name: reboot machine
+  #   become: true
+  #   become_user: root
+  #   reboot:
+
+
+
+
+# - name: Create instance django 
+#   hosts: localhost
+
+#   tasks:
+#     - name: change host
+#       lineinfile:
+#         path: /mnt/c/users/duda/documents/insper/6-semestre/cloud/tasks/portfolio/settings.py
+#         regexp: '^        HOST'
+#         line: '        "HOST": {{database}},'
+
