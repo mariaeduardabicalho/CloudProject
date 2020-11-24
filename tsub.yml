@@ -187,6 +187,7 @@
       name:
         - django
         - psycopg2
+        - djangorestframework
   - name: git cloning
     git:
       repo: https://github.com/mariaeduardabicalho/tasks.git
@@ -239,11 +240,12 @@
 - name: create load balancer
   hosts: localhost
   tasks:  
-    - name: Create the ELB only listening over port 80
+    - name: Create the ELB only listening over port 
       ec2_elb_lb:
-        name: t-load-balancer
+        name: projeto-load-balancer
         state: present
         region: us-east-1
+        
         zones:
           - us-east-1a
           - us-east-1b
@@ -256,6 +258,13 @@
           - protocol: http
             load_balancer_port: 80
             instance_port: 80
+        
+          - protocol: http
+            load_balancer_port: 8080
+            instance_port: 8080
+            
+        wait: true 
+        wait_timeout: 500
       register: elb
 
 - hosts: localhost
@@ -263,7 +272,7 @@
     - name: Add each EC2 instance to the ELB
       ec2_elb:
         state: present
-        ec2_elbs: t-load-balancer
+        ec2_elbs: projeto-load-balancer
         region: us-east-1 
         instance_id: "{{ item.id }}"
       with_items: "{{ ec2.instances}}"
