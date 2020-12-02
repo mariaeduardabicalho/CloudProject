@@ -16,12 +16,12 @@ print(r)
 
 # print(data)
 
-r = requests.post('newproj-load-balancer-655990403.us-east-1.elb.amazonaws.com:8080/index', json={"title": "test"})
+#r = requests.post('newproj-load-balancer-655990403.us-east-1.elb.amazonaws.com:8080/index', json={"title": "test"})
 # extracting data in json format 
 # data = r.json() 
 
 # print(data)
-print(r)
+#print(r)
 
 
 
