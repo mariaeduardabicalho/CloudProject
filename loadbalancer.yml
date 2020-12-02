@@ -3,7 +3,7 @@
   hosts: localhost
   gather_facts: False
   vars:
-    keypair: accessdudab
+    keypair: dudanewpc
     instance_type: t2.micro
     security_group: launch-wizard-14
     image: ami-0817d428a6fb68645
@@ -137,6 +137,11 @@
         region: us-east-1
         zones:
           - us-east-1a
+          - us-east-1b
+          - us-east-1c
+          - us-east-1d
+          - us-east-1e
+          - us-east-1f
 
         listeners:
           - protocol: http
@@ -153,6 +158,31 @@
         region: us-east-1
         instance_id: "{{ item.id }}"
       with_items: "{{ ec2.instances}}"
+
+- hosts: localhost
+  tasks:
+ 
+    - name: create launch config
+      ec2_lc:
+        name: proj_lc
+        image_id: ami-0817d428a6fb68645
+        key_name: dudanewpc
+        region: us-east-1
+        security_groups:  launch-wizard-14
+        instance_type: t2.micro
+        assign_public_ip: yes
+
+    - name: create auto scal
+      ec2_asg:
+        name: proj_as
+        launch_config_name: proj_lc
+        health_check_period: 60
+        health_check_type: ELB
+        replace_all_instances: yes
+        min_size: 5
+        max_size: 5
+        desired_capacity: 5
+        region: us-east-1
 
 
 

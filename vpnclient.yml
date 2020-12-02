@@ -1,0 +1,70 @@
+- name: Create instance django 
+  hosts: localhost
+  gather_facts: False
+  vars:
+    keypair: dudanewpc
+    instance_type: t2.micro
+    security_group: launch-wizard-14
+    image: ami-0817d428a6fb68645
+    region: us-east-1
+  tasks:
+    - name: Launch djangoinstances
+      ec2:
+        key_name: "{{ keypair }}"
+        region: "{{ region }}" 
+        group: "{{ security_group }}"
+        instance_type: "{{ instance_type }}"
+        image: "{{ image }}"
+        wait: yes   
+        vpc_subnet_id: subnet-c1cf7da6 
+        count : 1
+        assign_public_ip: yes
+      register: ec23  
+
+
+     
+    - name: Create SSH Group to login dynamically to EC2 Instance
+      add_host: 
+        hostname: "{{ item.public_ip }}"
+        groupname: ec2_server_django
+      with_items: '{{ ec23.instances }}'
+
+    - name: Wait for SSH to come up
+      wait_for: 
+        host: "{{ item.public_ip }}" 
+        port: 22
+        delay: 10
+        timeout: 320
+        state: started
+      with_items: '{{ ec23.instances }}'
+
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  - debug: var=ivar
+    delegate_to: ec2_server_django
+
+- hosts: ec2_server_django
+  become: yes
+  remote_user: ubuntu 
+  gather_facts: yes
+
+  tasks:
+  - name: Install openvpn
+    become: yes
+    become_user: root
+    apt: 
+      name: openvpn   
+      update_cache: True 
+      state: present  
+  - name: Copy file with owner and permissions
+    copy:
+      src: /tmp/ca_openvpn_pool_example/generated/janedoe/janedoe.ovpn
+      dest: /tmp
+      mode: '0644'
+  # - name: connect to server
+  # - name: Run command if /path/to/database does not exist (without 'args')-- connect to server
+  #   command: sudo openvpn --config /tmp/janedoe.ovpn 
+
+
+

@@ -1,0 +1,211 @@
+- name: Create instance vpn 
+  hosts: localhost
+  gather_facts: False
+  vars:
+    keypair: dudanewpc
+    instance_type: t2.micro
+    security_group: launch-wizard-14
+    image: ami-0817d428a6fb68645
+    region: us-east-1
+  tasks:
+    - name: Launch instances
+      ec2:
+        key_name: "{{ keypair }}"
+        region: "{{ region }}" 
+        group: "{{ security_group }}"
+        instance_type: "{{ instance_type }}"
+        image: "{{ image }}"
+        wait: yes   
+        vpc_subnet_id: subnet-c1cf7da6 
+        count : 1
+        assign_public_ip: yes
+      register: ec2  
+
+     
+    - name: Create SSH Group to login dynamically to EC2 Instance
+      add_host: 
+        hostname: "{{ item.public_ip }}"
+        groupname: openvpn_server
+      with_items: '{{ ec2.instances }}'
+    - name: Add new instance to host group
+      add_host:
+        name: "db_ip1"
+        ivar: "{{ item.public_ip }}"
+        hostname: "{{ item.public_ip }}"
+        groupname: database
+        debug: var=ivar
+        delegate_to: openvpn_server        
+      with_items: "{{ ec2.instances }}"
+
+    - name: Wait for SSH to come up
+      wait_for: 
+        host: "{{ item.public_ip }}" 
+        port: 22
+        delay: 10
+        timeout: 320
+        state: started
+      with_items: '{{ ec2.instances }}'
+
+- name: Create instance ca 
+  hosts: localhost
+  gather_facts: False
+  vars:
+    keypair: dudanewpc
+    instance_type: t2.micro
+    security_group: launch-wizard-14
+    image: ami-0817d428a6fb68645
+    region: us-east-1
+  tasks:
+    - name: Launch instances
+      ec2:
+        key_name: "{{ keypair }}"
+        region: "{{ region }}" 
+        group: "{{ security_group }}"
+        instance_type: "{{ instance_type }}"
+        image: "{{ image }}"
+        wait: yes   
+        vpc_subnet_id: subnet-c1cf7da6 
+        count : 2
+        assign_public_ip: yes
+      register: ec22 
+    
+    - name: Create SSH Group to login dynamically to EC2 Instance
+      add_host: 
+        hostname: "{{ item.public_ip }}"
+        groupname: ca_server
+      with_items: '{{ ec22.instances }}'
+    - name: Add new instance to host group
+      add_host:
+        name: "db_ip2"
+        ivar: "{{ item.public_ip }}"
+        hostname: "{{ item.public_ip }}"
+        groupname: database
+        debug: var=ivar
+        delegate_to: ca_server        
+      with_items: "{{ ec22.instances }}" 
+
+    - name: Wait for SSH to come up
+      wait_for: 
+        host: "{{ item.public_ip }}" 
+        port: 22
+        delay: 10
+        timeout: 320
+        state: started
+      with_items: '{{ ec22.instances }}'
+
+- name: Create instance client
+  hosts: localhost
+  gather_facts: False
+  vars:
+    keypair: dudanewpc
+    instance_type: t2.micro
+    security_group: launch-wizard-14
+    image: ami-0817d428a6fb68645
+    region: us-east-1
+  tasks:
+    - name: Launch instances
+      ec2:
+        key_name: "{{ keypair }}"
+        region: "{{ region }}" 
+        group: "{{ security_group }}"
+        instance_type: "{{ instance_type }}"
+        image: "{{ image }}"
+        wait: yes   
+        vpc_subnet_id: subnet-c1cf7da6 
+        count : 1
+        assign_public_ip: yes
+      register: ec23 
+    
+    - name: Create SSH Group to login dynamically to EC2 Instance
+      add_host: 
+        hostname: "{{ item.public_ip }}"
+        groupname: client_server
+      with_items: '{{ ec23.instances }}'
+    
+
+    - name: Wait for SSH to come up
+      wait_for: 
+        host: "{{ item.public_ip }}" 
+        port: 22
+        delay: 10
+        timeout: 320
+        state: started
+      with_items: '{{ ec23.instances }}'
+
+
+- hosts: localhost 
+  gather_facts: no
+  tasks:
+  - name: change host
+    lineinfile:
+      path: /mnt/c/users/user/documents/duda/cloudproject/inventory/openvpn_server
+      line: "openvpn_server_ip_address= {{hostvars['db_ip1']['ivar']}}"
+- hosts: localhost 
+  gather_facts: no
+  tasks:
+  - name: change host again
+    lineinfile:
+      path: /mnt/c/users/user/documents/duda/cloudproject/inventory/openvpn_server
+      line: "ansible_host= {{hostvars['db_ip1']['ivar']}}"
+- hosts: localhost 
+  gather_facts: no
+  tasks:
+  - name: change host again again
+    lineinfile:
+      path: /mnt/c/users/user/documents/duda/cloudproject/inventory/ca_server
+      line: "ansible_host= {{hostvars['db_ip2']['ivar']}}"
+- hosts: openvpn_server
+  become: yes
+  vars:
+    openvpn_client_users:
+      - janedoe
+      - johndoe
+    openvpn_generated_configurations_local_pool: true
+    easy_rsa_req_country: "IN"
+    easy_rsa_req_province: "KA"
+    easy_rsa_req_city: "Bangalore"
+    easy_rsa_req_org: "My Organization"
+    easy_rsa_req_email: "admin@example.com"
+    easy_rsa_req_ou: "My Organization Unit"
+    easy_rsa_local_pool_directory: /tmp/ca_openvpn_pool_example
+  roles:
+    - role: gavika.easy_rsa
+    - role: gavika.openvpn
+
+- hosts: ca_server
+  become: yes 
+  vars:
+    openvpn_client_users:
+      - janedoe
+      - johndoe
+    openvpn_generated_configurations_local_pool: true
+    easy_rsa_req_country: "IN"
+    easy_rsa_req_province: "KA"
+    easy_rsa_req_city: "Bangalore"
+    easy_rsa_req_org: "My Organization"
+    easy_rsa_req_email: "admin@example.com"
+    easy_rsa_req_ou: "My Organization Unit"
+    easy_rsa_local_pool_directory: /tmp/ca_openvpn_pool_example
+    easy_rsa_ca_server_mode: true
+  roles:
+    - role: gavika.easy_rsa
+
+- hosts: client_server
+  become: yes
+  tasks: 
+
+  - name: Install openvpn
+    become: yes
+    become_user: root
+    apt: 
+      name: openvpn   
+      update_cache: True 
+      state: present  
+  - name: Copy file with owner and permissions
+    copy:
+      src: /tmp/ca_openvpn_pool_example/generated/janedoe/janedoe.ovpn
+      dest: /tmp/
+      mode: '0644'
+  # - name: connect to server
+  - name: Run command -- connect to server
+    command: sudo openvpn --config /tmp/janedoe.ovpn 

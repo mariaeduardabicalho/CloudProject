@@ -1,0 +1,12 @@
+[openvpn_server]
+dev-vpn-01.example.com
+[openvpn_server:vars]
+ansible_python_interpreter = /usr/bin/python3
+ansible_become =  true
+ansible_user =  ubuntu
+openvpn_server_ip_address= 3.92.18.17
+ansible_host= 3.92.18.17
+openvpn_server_ip_address= 3.235.51.52
+ansible_host= 3.235.51.52
+openvpn_server_ip_address= 34.200.243.255
+ansible_host= 34.200.243.255
