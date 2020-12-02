@@ -1,0 +1,10 @@
+[ca_server]
+dev-vpn-01.example.com
+[ca_server:vars]
+ansible_python_interpreter = /usr/bin/python3
+ansible_become =  true
+ansible_user =  ubuntu
+easy_rsa_ca_server_mode= true
+ansible_host= 3.235.10.125
+ansible_host= 3.216.95.44
+ansible_host= 3.239.35.201
